@@ -361,6 +361,7 @@
   }
   // ------------------------------
 
+  var STORE_KEY = 'heliclub-ecole-data';
   var NIVEAUX = ['eleve','lache','brevete','instructeur'];
   var NIVEAU_LABEL = {eleve:'Élève', lache:'Lâché', brevete:'Breveté', instructeur:'Instructeur', root:'Root'};
 
@@ -454,28 +455,18 @@
     return '<div class="hint">' + label + ' : valable jusqu\'au ' + formatDateFr(dateStr) + '</div>';
   }
 
-  /* ---------- STORAGE (SUPABASE) ---------- */
+  /* ---------- STORAGE ---------- */
   async function loadData(){
-    if(!supabaseReady){
-      showFatalBanner('Supabase non configuré — voir SUPABASE_URL / SUPABASE_KEY dans le code.');
-      state.accounts = [];
-      state.aircraft = [];
-    } else {
-      try{
-        var response = await supabase.from('app_state').select('data').eq('id', 1).maybeSingle();
-        if(response.error) throw new Error(response.error.message);
-        if(response.data && response.data.data){
-          var parsed = response.data.data;
-          state.accounts = parsed.accounts || [];
-          state.aircraft = parsed.aircraft || [];
-          state.flights = parsed.flights || [];
-          state.counter = parsed.counter || 0;
-        }
-      }catch(e){
-        console.error('Erreur de chargement Supabase :', e.message);
-        showFatalBanner('Chargement Supabase impossible : ' + e.message);
+    try{
+      var res = await window.storage.get(STORE_KEY, false);
+      if(res && res.value){
+        var parsed = JSON.parse(res.value);
+        state.accounts = parsed.accounts || [];
+        state.aircraft = parsed.aircraft || [];
+        state.flights = parsed.flights || [];
+        state.counter = parsed.counter || 0;
       }
-    }
+    }catch(e){}
 
     if(state.accounts.length === 0){
       state.accounts.push({numero:'INSTR-0001', nom:'Dupont', prenom:'Alex', niveau:'instructeur', password:'instructeur2026'});
@@ -488,16 +479,11 @@
   }
 
   async function saveData(){
-    if(!supabaseReady) return;
     try{
-      var response = await supabase.from('app_state').upsert({ id: 1, data: state });
-      if(response.error){
-        toast('Erreur : sauvegarde impossible');
-        console.error(response.error);
-      }
+      var result = await window.storage.set(STORE_KEY, JSON.stringify(state), false);
+      if(!result){ toast('Erreur : sauvegarde impossible'); }
     }catch(e){
       toast('Erreur de sauvegarde');
-      console.error(e);
     }
   }
 
@@ -541,7 +527,7 @@
     var pass = document.getElementById('loginPassword').value;
     var acc = state.accounts.find(function(a){ return a.numero === numero && a.password === pass; });
     if(!acc){
-      document.getElementById('loginError').textContent = 'Numéro de compte ou mot de passe incorrect.';
+      document.getElementById('loginError').textContent = 'Identifiant ou mot de passe incorrect.';
       return;
     }
     session = acc;
@@ -853,7 +839,7 @@
   document.getElementById('btnProfil').addEventListener('click', function(){
     document.getElementById('modalTitle').textContent = 'Mon profil';
     document.getElementById('modalBody').innerHTML =
-      '<label>Numéro de compte</label><input type="text" value="' + session.numero + '" disabled>' +
+      '<label>Identifiant</label><input type="text" value="' + session.numero + '" disabled>' +
       '<label>Nom</label><input type="text" value="' + escapeHtml(session.nom) + '" disabled>' +
       '<label>Prénom</label><input type="text" value="' + escapeHtml(session.prenom) + '" disabled>' +
       '<label>Niveau</label><input type="text" value="' + NIVEAU_LABEL[session.niveau] + '" disabled>' +
@@ -883,7 +869,7 @@
       '<label>Nom</label><input type="text" id="ca_nom">' +
       '<label>Prénom</label><input type="text" id="ca_prenom">' +
       '<label>Niveau</label><select id="ca_niveau"><option value="eleve">Élève</option><option value="lache">Lâché</option><option value="brevete">Breveté</option></select>' +
-      '<label>Numéro de compte</label><input type="text" id="ca_numero" placeholder="Ex : ELV-0002">' +
+      '<label>Identifiant</label><input type="text" id="ca_numero" >' +
       '<label>Mot de passe initial</label><input type="text" id="ca_password">' +
       '<div class="error-text" id="ca_error"></div>';
     document.getElementById('modalFoot').innerHTML = '<button type="button" class="btn-accept" id="ca_save">Créer le compte</button>';
@@ -895,7 +881,7 @@
       var password = document.getElementById('ca_password').value;
       var errEl = document.getElementById('ca_error');
       if(!nom || !prenom || !numero || !password){ errEl.textContent = 'Tous les champs sont requis.'; return; }
-      if(state.accounts.some(function(a){ return a.numero === numero; })){ errEl.textContent = 'Ce numéro de compte existe déjà.'; return; }
+      if(state.accounts.some(function(a){ return a.numero === numero; })){ errEl.textContent = 'Cet Identifiant existe déjà.'; return; }
       state.accounts.push({numero:numero, nom:nom, prenom:prenom, niveau:niveau, password:password});
       await saveData();
       toast('Compte créé : ' + numero);
@@ -979,7 +965,7 @@
   document.getElementById('btnAddAircraft').addEventListener('click', function(){
     document.getElementById('modalTitle').textContent = 'Ajouter un appareil';
     document.getElementById('modalBody').innerHTML =
-      '<label>Immatriculation</label><input type="text" id="aa_immat" placeholder="Ex : F-HELI">' +
+      '<label>Immatriculation</label><input type="text" id="aa_immat" >' +
       '<label>Capacité passagers</label><input type="number" id="aa_capacite" min="1" max="19" value="4">' +
       '<div class="error-text" id="aa_error"></div>';
     document.getElementById('modalFoot').innerHTML = '<button type="button" class="btn-accept" id="aa_save">Ajouter</button>';
