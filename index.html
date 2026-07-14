@@ -326,7 +326,18 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+(function(){
+
+  // --- CONFIGURATION SUPABASE ---
+  // Remplace ce qu'il y a entre les guillemets par tes vraies infos Supabase :
+  var SUPABASE_URL = 'https://ton-vrai-lien-ici.supabase.co'; 
+  var SUPABASE_KEY = 'ta-tres-longue-cle-qui-commence-par-ey...';
+  var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // ------------------------------
+
+  var NIVEAUX = ['eleve','lache','brevete','instructeur'];
 (function(){
 
   // --- CONFIGURATION SUPABASE ---
